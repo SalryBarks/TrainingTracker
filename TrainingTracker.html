@@ -1,0 +1,714 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Tracker — Golf + Hockey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1217;
+    --panel:#161C24;
+    --panel-2:#1E2732;
+    --line:#2A3441;
+    --line-soft:#222C38;
+    --text:#EAF0F6;
+    --muted:#8A97A6;
+    --chalk:#F5F7FA;
+    --ice:#34D3EB;      /* hockey */
+    --turf:#4ADE80;     /* golf */
+    --ice-dim:rgba(52,211,235,.14);
+    --turf-dim:rgba(74,222,128,.14);
+    --gold:#F4B740;     /* personal best */
+    --radius:14px;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(52,211,235,.06), transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, rgba(74,222,128,.05), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:"Inter",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 20px 90px}
+
+  /* ---- Header / scoreboard ---- */
+  header.top{
+    display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;
+    gap:18px;padding-bottom:22px;border-bottom:1px solid var(--line);
+  }
+  .brand h1{
+    font-family:"Oswald",sans-serif;font-weight:700;letter-spacing:.02em;
+    text-transform:uppercase;margin:0;font-size:clamp(28px,5vw,44px);line-height:.98;
+  }
+  .brand h1 .split{color:var(--ice)}
+  .brand h1 .split2{color:var(--turf)}
+  .brand p{margin:6px 0 0;color:var(--muted);font-size:14px;letter-spacing:.01em}
+
+  .scoreboard{
+    display:flex;gap:10px;
+  }
+  .stat{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:10px 16px;text-align:center;min-width:82px;
+  }
+  .stat .num{font-family:"Oswald",sans-serif;font-weight:600;font-size:30px;line-height:1}
+  .stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-top:6px}
+  .stat.week .num{color:var(--ice)}
+  .stat.total .num{color:var(--turf)}
+
+  /* ---- Day tabs ---- */
+  nav.days{display:flex;gap:8px;flex-wrap:wrap;margin:24px 0 22px}
+  .tab{
+    font-family:"Oswald",sans-serif;font-weight:500;text-transform:uppercase;letter-spacing:.06em;
+    font-size:14px;color:var(--muted);background:var(--panel);border:1px solid var(--line);
+    padding:11px 16px;border-radius:11px;cursor:pointer;transition:.15s;
+    display:flex;align-items:center;gap:9px;
+  }
+  .tab .dot{width:8px;height:8px;border-radius:50%;background:var(--line);flex:none}
+  .tab:hover{color:var(--text);border-color:#38465a}
+  .tab[aria-selected="true"]{color:var(--chalk);background:var(--panel-2);border-color:#43566c}
+  .tab[aria-selected="true"] .dot{background:var(--ice)}
+  .tab:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+
+  .day-head{margin:0 0 4px;font-family:"Oswald",sans-serif;font-weight:600;
+    text-transform:uppercase;letter-spacing:.03em;font-size:22px}
+  .day-sub{color:var(--muted);font-size:13.5px;margin:0 0 18px}
+
+  /* ---- Exercise cards ---- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden;
+  }
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--line)}
+  .card.golf::before{background:var(--turf)}
+  .card.hockey::before{background:var(--ice)}
+  .card.both::before{background:linear-gradient(var(--ice),var(--turf))}
+
+  .card-top{display:flex;gap:13px;align-items:center}
+  .icon{
+    position:relative;width:56px;height:56px;flex:none;border-radius:12px;background:var(--panel-2);
+    border:1px solid var(--line-soft);display:grid;place-items:center;color:var(--chalk);
+  }
+  .icon svg{width:38px;height:38px;transform-box:fill-box;transform-origin:center;will-change:transform}
+  .icon.big{width:100%;height:auto;aspect-ratio:16/9;border-radius:11px}
+  .icon.big svg{width:74px;height:74px}
+
+  /* clip button + inline player */
+  .clip-btn{
+    align-self:flex-start;display:inline-flex;align-items:center;gap:8px;
+    font-family:"Inter",sans-serif;font-size:12.5px;font-weight:600;color:var(--ice);
+    background:var(--ice-dim);border:none;border-radius:9px;padding:8px 13px;cursor:pointer;transition:.15s;
+  }
+  .clip-btn:hover{filter:brightness(1.18)}
+  .clip-btn:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+  .clip-btn .tri{width:0;height:0;border-style:solid;border-width:5px 0 5px 8px;
+    border-color:transparent transparent transparent currentColor;transition:.15s}
+  .clip-btn.open .tri{border-width:0 3px 0 3px;height:11px;border-color:currentColor;margin:0 1px}
+  .clip[hidden]{display:none}
+  .clip-inner{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#000}
+  .clip-inner iframe{display:block;width:100%;aspect-ratio:16/9;border:0}
+  /* thumbnail play card (reliable, opens YouTube in a new tab) */
+  .clip-thumb{
+    position:relative;display:block;aspect-ratio:16/9;border-radius:11px;overflow:hidden;
+    border:1px solid var(--line);background:#0a0d11;text-decoration:none;
+  }
+  .clip-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    opacity:.82;transition:.2s}
+  .clip-thumb:hover img{opacity:1;transform:scale(1.03)}
+  .clip-thumb::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(0,0,0,.1),rgba(0,0,0,.55))}
+  .clip-thumb:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+  .clip-play{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;
+    width:52px;height:52px;border-radius:50%;background:rgba(15,20,26,.72);
+    border:2px solid rgba(255,255,255,.9);display:grid;place-items:center;transition:.15s;
+  }
+  .clip-play::before{content:"";border-style:solid;border-width:9px 0 9px 15px;
+    border-color:transparent transparent transparent #fff;margin-left:3px}
+  .clip-thumb:hover .clip-play{background:var(--ice);border-color:var(--ice);transform:translate(-50%,-50%) scale(1.08)}
+  .clip-thumb:hover .clip-play::before{border-left-color:#04222a}
+  .clip-cta{position:absolute;left:12px;bottom:10px;z-index:2;color:#fff;font-size:12.5px;
+    font-weight:600;letter-spacing:.01em;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+  .clip-empty{
+    border:1px dashed var(--line);border-radius:11px;padding:16px;text-align:center;
+    display:flex;flex-direction:column;align-items:center;gap:7px;color:var(--muted);
+  }
+  .clip-empty p{margin:2px 0 0;font-size:13px;color:var(--text)}
+  .clip-empty a{color:var(--ice);text-decoration:none;font-size:13px;font-weight:600}
+  .clip-empty a:hover{text-decoration:underline}
+  .clip-empty small{font-size:11px;color:var(--muted)}
+
+  /* per-movement animations on the icon glyph */
+  @keyframes bob{0%,100%{transform:translateY(-1px)}50%{transform:translateY(3px)}}
+  @keyframes bobfast{0%,100%{transform:translateY(-1px)}50%{transform:translateY(2px)}}
+  @keyframes tilt{0%,100%{transform:rotate(0)}50%{transform:rotate(15deg)}}
+  @keyframes pushY{0%,100%{transform:translateY(2px)}50%{transform:translateY(-3px)}}
+  @keyframes pullX{0%,100%{transform:translateX(1px)}50%{transform:translateX(-3px)}}
+  @keyframes sway{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(.92)}}
+  @keyframes jump{0%,55%,100%{transform:translateY(2px)}30%{transform:translateY(-5px)}}
+  @keyframes sideways{0%,100%{transform:translateX(-4px)}50%{transform:translateX(4px)}}
+  @keyframes pendulum{0%,100%{transform:rotate(-13deg)}50%{transform:rotate(13deg)}}
+  .m-bob svg{animation:bob 2.3s ease-in-out infinite}
+  .m-bobfast svg{animation:bobfast 1.1s ease-in-out infinite}
+  .m-tilt svg{animation:tilt 2.4s ease-in-out infinite;transform-origin:45% 62%}
+  .m-pushY svg{animation:pushY 2s ease-in-out infinite}
+  .m-pullX svg{animation:pullX 1.9s ease-in-out infinite}
+  .m-sway svg{animation:sway 2.6s ease-in-out infinite}
+  .m-pulse svg{animation:pulse 2.4s ease-in-out infinite}
+  .m-jump svg{animation:jump 1.9s cubic-bezier(.4,0,.3,1) infinite}
+  .m-side svg{animation:sideways 1.5s ease-in-out infinite}
+  .m-pendulum svg{animation:pendulum 1.8s ease-in-out infinite;transform-origin:50% 20%}
+  .ex-name{font-family:"Oswald",sans-serif;font-weight:600;font-size:18px;line-height:1.05;margin:0}
+  .ex-target{color:var(--muted);font-size:12.5px;margin-top:3px}
+  .tags{display:flex;gap:6px;margin-top:7px}
+  .tag{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;padding:3px 7px;border-radius:20px;font-weight:600}
+  .tag.golf{background:var(--turf-dim);color:var(--turf)}
+  .tag.hockey{background:var(--ice-dim);color:var(--ice)}
+
+  /* logging row */
+  .log{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+  .field input{
+    width:78px;background:var(--bg);border:1px solid var(--line);color:var(--text);
+    border-radius:9px;padding:9px 10px;font-size:15px;font-family:"Oswald",sans-serif;font-weight:500;
+  }
+  .field input:focus{outline:2px solid var(--ice);outline-offset:1px;border-color:transparent}
+  .field.wide input{width:100%;font-family:"Inter",sans-serif;font-weight:400;font-size:13px}
+  .field.wide{flex:1;min-width:120px}
+
+  .lastline{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);min-height:18px}
+  .pb{color:var(--gold);font-weight:600;display:inline-flex;align-items:center;gap:4px}
+  .spark{margin-left:auto}
+
+  /* recovery checklist */
+  .check-list{display:flex;flex-direction:column;gap:2px}
+  .check{
+    display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);
+    border-radius:11px;background:var(--panel);cursor:pointer;transition:.15s;
+  }
+  .check:hover{border-color:#38465a}
+  .check input{width:18px;height:18px;accent-color:var(--turf);flex:none;cursor:pointer}
+  .check span{font-size:14.5px}
+  .check.done span{color:var(--muted);text-decoration:line-through}
+
+  /* save bar */
+  .savebar{
+    position:sticky;bottom:0;margin-top:22px;padding:14px 16px;
+    background:linear-gradient(0deg,var(--panel) 60%,rgba(22,28,36,.85));
+    border:1px solid var(--line);border-radius:14px;
+    display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    box-shadow:var(--shadow);backdrop-filter:blur(6px);
+  }
+  .savebar .msg{font-size:13px;color:var(--muted)}
+  .btn{
+    font-family:"Oswald",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;
+    font-size:14px;border:none;border-radius:11px;padding:12px 22px;cursor:pointer;transition:.15s;
+    background:var(--ice);color:#04222a;
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn:active{transform:translateY(1px)}
+  .btn:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+  .btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
+  .btn.ghost:hover{color:var(--text);border-color:#38465a}
+
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+    background:var(--turf);color:#04240f;font-weight:600;font-size:14px;
+    padding:12px 22px;border-radius:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;
+    transition:.28s;z-index:20;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  footer{margin-top:34px;color:var(--muted);font-size:12px;text-align:center;line-height:1.7}
+  a.link{color:var(--ice);text-decoration:none}
+
+  @media (max-width:520px){
+    .scoreboard{width:100%}
+    .stat{flex:1}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important}
+    .icon svg{animation:none!important}
+  }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Off-Ice / <span class="split">Off</span>-<span class="split2">Tee</span> Log</h1>
+      <p>Home-gym strength &amp; power tracker — built for golf and hockey.</p>
+    </div>
+    <div class="scoreboard">
+      <div class="stat week"><div class="num" id="statWeek">0</div><div class="lbl">This Week</div></div>
+      <div class="stat total"><div class="num" id="statTotal">0</div><div class="lbl">Sessions</div></div>
+    </div>
+  </header>
+
+  <nav class="days" id="tabs" role="tablist" aria-label="Training days"></nav>
+
+  <main id="dayView" role="tabpanel"></main>
+
+  <footer>
+    Carryover key —
+    <span style="color:var(--turf);font-weight:600">green = golf</span> ·
+    <span style="color:var(--ice);font-weight:600">blue = hockey</span>.
+    Log the working weight and reps you actually hit; a
+    <span style="color:var(--gold);font-weight:600">★</span> means a new best.
+    Progress saves automatically on this device.
+    <br>Hit <span style="color:var(--ice)">▸ Watch clip</span> on any exercise to see the movement.
+    Keep form clean — leave 2–3 reps in the tank, and stop on any sharp joint pain.
+  </footer>
+</div>
+
+<div class="toast" id="toast">Session saved ✓</div>
+
+<script>
+/* ---------------- Exercise data ---------------- */
+const DAYS = [
+  {
+    id:"warmup", label:"Warm-Up", accent:"gold",
+    title:"Warm-Up — Before Every Session",
+    sub:"8–10 minutes to prime the joints and nervous system. Run through these before any training day.",
+    checklist:[
+      "Vibration plate — 2 min, light knee bend",
+      "Leg swings — 10 / leg (front-back + side-side)",
+      "Walking lunge with rotation — 8 / side",
+      "Band pull-aparts — 15 reps",
+      "Bosu hip circles — 30s / direction",
+      "Band arm circles + shoulder dislocates — 10 / direction",
+      "5 bodyweight squats → 5 broad jump-and-stick",
+    ]
+  },
+  {
+    id:"d1", label:"Day 1", accent:"ice",
+    title:"Lower Body Strength + Rotational Power",
+    sub:"Squat/hinge base, single-leg control, and rotation that maps onto the golf swing.",
+    ex:[
+      {id:"goblet",  name:"Goblet Squat", target:"3 × 10", tag:"both",  icon:"squat", unit:"weight"},
+      {id:"rdl",     name:"Kettlebell RDL", target:"3 × 10", tag:"hockey", icon:"hinge", unit:"weight"},
+      {id:"stepup",  name:"Box Step-Up", target:"3 × 8 / leg", tag:"hockey", icon:"stepup", unit:"weight"},
+      {id:"bss",     name:"Bulgarian Split Squat", target:"2 × 8 / leg", tag:"hockey", icon:"lunge", unit:"weight"},
+      {id:"chop",    name:"Band Rotational Chop", target:"3 × 10 / side", tag:"golf", icon:"chop", unit:"weight"},
+      {id:"wallrot", name:"Wall Ball Rotational Throw", target:"3 × 8 / side", tag:"golf", icon:"throw", unit:"weight"},
+      {id:"balboard",name:"Single-Leg Bosu Balance - KB Body Circles", target:"3 × 5 / direction", tag:"both", icon:"bosubal", unit:"weight"},
+    ]
+  },
+  {
+    id:"d2", label:"Day 2", accent:"turf",
+    title:"Upper Body Strength + Core",
+    sub:"Push, pull, and anti-rotation core — the brace that stabilizes every swing and shot.",
+    ex:[
+      {id:"floorpress",name:"Dumbbell Floor Press", target:"3 × 10", tag:"both", icon:"press", unit:"weight"},
+      {id:"bandrow",  name:"Half-Kneeling Single-Arm Band Row", target:"3 × 10 / side", tag:"both", icon:"row", unit:"weight"},
+      {id:"ohp",      name:"Dumbbell Overhead Press", target:"3 × 10", tag:"both", icon:"ohp", unit:"weight"},
+      {id:"kbrow",    name:"Single-Arm KB Row", target:"3 × 10 / side", tag:"both", icon:"kbrow", unit:"weight"},
+      {id:"pallof",   name:"Pallof Press", target:"3 × 10 / side", tag:"golf", icon:"pallof", unit:"weight"},
+      {id:"ballpush", name:"Bosu Ball Push-Up", target:"2 × 8–10", tag:"both", icon:"pushup", unit:"reps"},
+      {id:"hollow",   name:"Hollow Hold", target:"3 × 20–30s", tag:"golf", icon:"hollow", unit:"time"},
+    ]
+  },
+  {
+    id:"d3", label:"Day 3", accent:"ice",
+    title:"Full-Body Power, Agility & Balance",
+    sub:"Jumps, swings, and lateral work — this is the hockey-stride and shift-conditioning day.",
+    ex:[
+      {id:"boxjump",  name:"Box Jump", target:"4 × 5", tag:"hockey", icon:"jump", unit:"weight"},
+      {id:"bosuhop",  name:"Lateral Bosu Hop", target:"3 × 8 / side", tag:"hockey", icon:"bosuhop", unit:"reps"},
+      {id:"kbswing",  name:"Kettlebell Swing", target:"3 × 12", tag:"both", icon:"swing", unit:"weight"},
+      {id:"sprint",   name:"Treadmill Sprint Intervals", target:"6 × 20s / 40s", tag:"hockey", icon:"sprint", unit:"time"},
+      {id:"shuffle",  name:"Band-Resisted Lateral Shuffle", target:"3 × 10 steps / dir", tag:"hockey", icon:"shuffle", unit:"reps"},
+      {id:"bosusquat",name:"Single-Leg Bosu Squat", target:"2 × 8 / leg", tag:"hockey", icon:"bosusquat", unit:"reps"},
+      {id:"stickrot", name:"Half-Kneeling Band Rotational Chop", target:"3 × 10 / side", tag:"golf", icon:"chop", unit:"weight"},
+    ]
+  },
+  {
+    id:"d4", label:"Recovery", accent:"turf",
+    title:"Mobility, Conditioning & Recovery",
+    sub:"Optional day. Check off what you do — no numbers to chase here.",
+    checklist:[
+      "Treadmill incline walk — 15–20 min easy",
+      "Hip flexor stretch on yoga block — 2 × 30s / side",
+      "Thoracic open-book rotation — 8 / side",
+      "90/90 hip stretch — 2 × 30s / side",
+      "Kneeling stick stretch — shoulders + thoracic, 2 × 30s",
+      "World's Greatest Stretch — 5 / side",
+      "Chin-up bar hang — 2 × 20–30s",
+      "Foam roll: quads, hams, calves, glutes, back",
+      "Balance board — 5 min easy standing",
+    ]
+  }
+];
+
+/* ---------------- SVG visuals per exercise ---------------- */
+const S = (inner) =>
+  `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+const ICONS = {
+  squat: S(`<circle cx="24" cy="9" r="3.2"/><path d="M24 12v8"/><path d="M24 20l-6 6 3 9"/><path d="M24 20l6 6-3 9"/><path d="M16 16h16"/><rect x="18" y="13.5" width="12" height="4" rx="1.2"/>`),
+  hinge: S(`<circle cx="15" cy="10" r="3"/><path d="M15 13l4 8h9"/><path d="M19 21l-2 14"/><path d="M28 21v14"/><path d="M25 34h10"/><path d="M27 34v-6M33 34v-6"/>`),
+  stepup: S(`<rect x="27" y="26" width="14" height="14" rx="1"/><rect x="30" y="30" width="8" height="6" rx="1"/><circle cx="16" cy="9" r="3"/><path d="M16 12v9l11-3"/><path d="M16 21l-3 14"/><path d="M20 20l4 8"/>`),
+  lunge: S(`<circle cx="20" cy="9" r="3"/><path d="M20 12v8"/><path d="M20 20l-8 4 2 11"/><path d="M20 20l7 5v10"/><path d="M13 35h6M27 35h8"/>`),
+  chop: S(`<path d="M8 12a20 20 0 0 1 30 24" stroke-dasharray="0.1 5"/><path d="M32 30l6 6 2-8"/><circle cx="18" cy="18" r="3"/><path d="M18 21l2 9M18 21l7-3"/><path d="M20 30l-3 8M20 30l6 4"/>`),
+  throw: S(`<circle cx="14" cy="20" r="4.5"/><path d="M20 12a22 22 0 0 1 18 6" stroke-dasharray="0.1 5"/><rect x="34" y="8" width="8" height="24" rx="1"/><path d="M18 18l6-4"/>`),
+  balance: S(`<circle cx="24" cy="9" r="3"/><path d="M24 12v11"/><path d="M24 15l-7 4M24 15l7 4"/><path d="M24 23v8"/><path d="M17 34a7 3.5 0 0 0 14 0" /><path d="M24 31l-1 3M24 31l1 3"/>`),
+  bosubal: S(`<circle cx="24" cy="8" r="2.6"/><path d="M24 11v9"/><path d="M24 20l-2 13"/><path d="M24 22l6 5"/><path d="M24 13l10 8"/><path d="M13 35a11 5 0 0 1 22 0"/><path d="M13 35h22"/><ellipse cx="24" cy="21" rx="12" ry="4.5" stroke-dasharray="0.1 3"/><path d="M13 23l-1-3 3 0"/><circle cx="34" cy="22" r="2.6"/><path d="M32.4 20.2a1.6 1.6 0 0 1 3.2 0"/>`),
+  press: S(`<path d="M6 34h36"/><circle cx="20" cy="30" r="3"/><path d="M23 30h7"/><path d="M30 30l4-8"/><rect x="31" y="12" width="7" height="4" rx="1"/><rect x="8" y="18" width="4" height="7" rx="1"/><path d="M12 21h9"/>`),
+  row: S(`<path d="M40 8v32" stroke-dasharray="0.1 4"/><path d="M40 24H22" stroke-dasharray="0.1 4"/><circle cx="15" cy="12" r="3"/><path d="M15 15l3 9"/><path d="M18 24l4 0M18 24l-2 11"/><path d="M18 24l6 0"/><rect x="18" y="22" width="5" height="4" rx="1"/>`),
+  ohp: S(`<circle cx="24" cy="30" r="3"/><path d="M24 27v-8"/><rect x="17" y="8" width="14" height="4" rx="1"/><path d="M24 19l-6-7M24 19l6-7"/><path d="M24 33l-3 7M24 33l3 7"/>`),
+  kbrow: S(`<path d="M8 30h20"/><circle cx="14" cy="24" r="3"/><path d="M17 25l8-2"/><path d="M25 23l4 12"/><path d="M25 23l-6 10"/><path d="M32 26v6a3 3 0 0 0 6 0v-6" /><path d="M33 26h4l-2-3z"/>`),
+  pallof: S(`<path d="M40 8v32" stroke-dasharray="0.1 4"/><circle cx="18" cy="10" r="3"/><path d="M18 13v11"/><path d="M18 16h14"/><path d="M18 24l-3 11M18 24l5 11"/>`),
+  pushup: S(`<circle cx="34" cy="30" r="6"/><path d="M12 20a6 6 0 0 1 6 6" /><circle cx="12" cy="17" r="3"/><path d="M15 24l13 4"/><path d="M15 24l-3 6"/>`),
+  hollow: S(`<path d="M8 30a30 12 0 0 1 32 0"/><circle cx="12" cy="24" r="2.6"/><path d="M14 26l12 2 12-4"/>`),
+  jump: S(`<rect x="28" y="26" width="14" height="14" rx="1"/><path d="M6 20a22 22 0 0 1 22 4" stroke-dasharray="0.1 5"/><circle cx="12" cy="12" r="3"/><path d="M12 15l3 7-2 6"/><path d="M15 22l6-2"/><path d="M12 15l-3 5"/>`),
+  bosuhop: S(`<path d="M14 34a10 5 0 0 1 20 0"/><path d="M14 34h20"/><path d="M8 22l-3 3 3 3M40 22l3 3-3 3" /><circle cx="24" cy="12" r="3"/><path d="M24 15v9"/><path d="M24 18l-4 3M24 18l4 3"/>`),
+  swing: S(`<path d="M10 34a20 16 0 0 1 28-14" stroke-dasharray="0.1 5"/><circle cx="34" cy="18" r="4.5"/><path d="M34 13v-3"/><path d="M31 10h6"/><path d="M8 34h16"/>`),
+  sprint: S(`<rect x="8" y="30" width="32" height="8" rx="2"/><path d="M11 38v3M37 38v3"/><circle cx="26" cy="12" r="3"/><path d="M26 15l-3 7 4 4"/><path d="M23 22l-6 2"/><path d="M26 15l6 2"/><path d="M27 26l-3 4"/>`),
+  shuffle: S(`<path d="M6 24l-3 3 3 3M42 24l3 3-3 3"/><path d="M6 27h36" stroke-dasharray="0.1 4"/><circle cx="24" cy="10" r="3"/><path d="M24 13v9"/><path d="M24 22l-5 6M24 22l5 6"/><path d="M19 28h10" stroke-dasharray="0.1 3"/>`),
+  bosusquat: S(`<path d="M12 36a12 6 0 0 1 24 0"/><path d="M12 36h24"/><circle cx="24" cy="12" r="3"/><path d="M24 15l-4 8 2 7"/><path d="M24 15l4 8-2 7"/><path d="M18 21h12"/>`),
+  stick: S(`<path d="M30 8L14 32l-6 2 2-6L30 8" /><path d="M6 40h14"/><path d="M18 14a14 14 0 0 1 8 20" stroke-dasharray="0.1 5"/>`),
+};
+
+/* movement animation per icon */
+const MOTION = {
+  squat:"bob", hinge:"tilt", stepup:"bob", lunge:"bob",
+  chop:"sway", throw:"sway", balance:"sway", bosubal:"sway",
+  press:"pushY", row:"pullX", ohp:"pushY", kbrow:"pullX",
+  pallof:"sway", pushup:"bob", hollow:"pulse",
+  jump:"jump", bosuhop:"side", swing:"pendulum", sprint:"bobfast",
+  shuffle:"side", bosusquat:"bob", stick:"sway",
+};
+
+/* =========================================================================
+   VIDEO CLIPS  —  EDIT THIS LIST
+   Paste a YouTube video ID between the quotes for any exercise. The ID is the
+   part after "watch?v=" in a YouTube URL, e.g. for
+   https://www.youtube.com/watch?v=dQw4w9WgXcQ  the ID is  dQw4w9WgXcQ
+   Leave "" to show the animation + a search link instead. If a clip ever
+   goes dead, just swap in a new ID here — nothing else needs to change.
+   ========================================================================= */
+const VIDEOS = {
+  // Day 1
+ goblet:"lRYBbchqxtI", rdl:"hu3jRvTc_po", stepup:"j8KN0jwWaRA", bss:"or1frhkjBDc", chop:"ViWJ1u2u4d0", wallrot:"xLm54Vy6kEk", balboard:"Btd-CGpFhP0",
+
+  // Day 2
+  floorpress:"", bandrow:"DfAJp-tnw58", ohp:"", kbrow:"", pallof:"", ballpush:"", hollow:"",
+  // Day 3
+  boxjump:"", bosuhop:"", kbswing:"", sprint:"", shuffle:"", bosusquat:"", stickrot:"",
+};
+
+/* -------------------------------------------------------------------------
+   HOW CLIPS OPEN
+   "link"   = show the video thumbnail; tapping it plays on YouTube in a new
+              tab. Works everywhere, including this preview and a local file.
+   "inline" = play the video embedded inside the card. This ONLY works when
+              the page is served from a real web address (e.g. GitHub Pages).
+              In a preview or a downloaded file, YouTube blocks it with a
+              "player configuration" error — so leave this on "link" unless
+              you've hosted the file online.
+   ------------------------------------------------------------------------- */
+const EMBED_MODE = "link";
+
+/* fallback search link when no clip ID is set yet */
+function videoURL(ex){
+  return "https://www.youtube.com/results?search_query=" +
+    encodeURIComponent("how to " + ex.name + " proper form technique");
+}
+function exById(id){
+  for(const d of DAYS){ if(d.ex){ const f=d.ex.find(e=>e.id===id); if(f) return f; } }
+  return null;
+}
+
+/* open/close the inline clip; the iframe is created lazily on first open */
+function toggleClip(btn){
+  const id = btn.dataset.clip;
+  const box = viewEl.querySelector(`[data-clipbox="${id}"]`);
+  const lbl = btn.querySelector(".lbl");
+  const isOpen = !box.hasAttribute("hidden");
+
+  if(isOpen){
+    box.setAttribute("hidden","");
+    btn.setAttribute("aria-expanded","false");
+    btn.classList.remove("open");
+    lbl.textContent = "Watch clip";
+    return;
+  }
+
+  if(!box.dataset.loaded){
+    const ex = exById(id);
+    const vid = VIDEOS[id];
+    if(vid && EMBED_MODE === "inline"){
+      box.innerHTML =
+        `<div class="clip-inner"><iframe
+            src="https://www.youtube-nocookie.com/embed/${vid}?rel=0"
+            title="${ex.name} form demo"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen loading="lazy"></iframe></div>`;
+    } else if(vid){
+      // reliable default: thumbnail that opens the video in a new tab
+      box.innerHTML =
+        `<a class="clip-thumb" href="https://www.youtube.com/watch?v=${vid}"
+            target="_blank" rel="noopener noreferrer"
+            aria-label="Play ${ex.name} video on YouTube (opens in a new tab)">
+           <img src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" alt=""
+                loading="lazy" onerror="this.remove()">
+           <span class="clip-play" aria-hidden="true"></span>
+           <span class="clip-cta">Play on YouTube ▸</span>
+         </a>`;
+    } else {
+      box.innerHTML =
+        `<div class="clip-empty">
+           <div class="icon big m-${MOTION[ex.icon]||"bob"}">${ICONS[ex.icon]||""}</div>
+           <p>No clip linked for this one yet.</p>
+           <a href="${videoURL(ex)}" target="_blank" rel="noopener noreferrer">Find a form video ▸</a>
+           <small>Paste its ID into the VIDEOS list to show it here.</small>
+         </div>`;
+    }
+    box.dataset.loaded = "1";
+  }
+  box.removeAttribute("hidden");
+  btn.setAttribute("aria-expanded","true");
+  btn.classList.add("open");
+  lbl.textContent = "Hide clip";
+}
+
+/* ---------------- Storage ---------------- */
+const KEY = "golf-hockey-logs-v1";
+let DB = { logs:{}, checks:{} };  // logs[exId] = [{date, w, r}]; checks[dateKey] = [bool...]
+
+/* Persistence adapter:
+   - Inside Claude's preview, window.storage is available and is used.
+   - As a downloaded / hosted file (e.g. on an iPhone in Safari), it falls
+     back to the browser's own localStorage so progress still saves. */
+const STORE = (function(){
+  const hasWS = typeof window !== "undefined" && window.storage
+    && typeof window.storage.get === "function";
+  return {
+    async get(k){
+      if(hasWS){ try{ const r = await window.storage.get(k); return r ? r.value : null; }catch(e){} }
+      try{ return localStorage.getItem(k); }catch(e){ return null; }
+    },
+    async set(k,v){
+      if(hasWS){ try{ await window.storage.set(k,v); return; }catch(e){} }
+      try{ localStorage.setItem(k,v); }catch(e){}
+    }
+  };
+})();
+
+async function loadDB(){
+  try{
+    const val = await STORE.get(KEY);
+    if(val) DB = JSON.parse(val);
+  }catch(e){ /* first run / no data yet */ }
+  if(!DB.logs) DB.logs = {};
+  if(!DB.checks) DB.checks = {};
+}
+async function saveDB(){
+  try{ await STORE.set(KEY, JSON.stringify(DB)); }
+  catch(e){ console.error("save failed", e); }
+}
+
+/* ---------------- Helpers ---------------- */
+const todayKey = () => new Date().toISOString().slice(0,10);
+const fmtDate = (k) => { const d=new Date(k+"T00:00"); return d.toLocaleDateString(undefined,{month:"short",day:"numeric"}); };
+
+function bestFor(exId){
+  const arr = DB.logs[exId]||[];
+  return arr.reduce((m,e)=> Math.max(m, Number(e.w)||0), 0);
+}
+function lastFor(exId){
+  const arr = DB.logs[exId]||[];
+  return arr.length ? arr[arr.length-1] : null;
+}
+function sparkline(exId, unit){
+  const arr = (DB.logs[exId]||[]).slice(-8);
+  if(arr.length < 2) return "";
+  const vals = arr.map(e => unit==="weight" ? Number(e.w)||0 : Number(e.r)||0);
+  const max = Math.max(...vals), min = Math.min(...vals);
+  const rng = max-min || 1;
+  const W=64,H=20,step=W/(vals.length-1);
+  const pts = vals.map((v,i)=>`${(i*step).toFixed(1)},${(H-2-((v-min)/rng)*(H-4)).toFixed(1)}`).join(" ");
+  const col = unit==="weight" ? "var(--turf)" : "var(--ice)";
+  return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+function unitLabels(unit){
+  if(unit==="time")   return {a:{k:"w",l:"Seconds"}, b:null};
+  if(unit==="reps")   return {a:{k:"r",l:"Reps"},    b:null};
+  return {a:{k:"w",l:"Weight (lb)"}, b:{k:"r",l:"Reps"}};   // weight
+}
+
+/* ---------------- Render ---------------- */
+let current = 0;
+const tabsEl = document.getElementById("tabs");
+const viewEl = document.getElementById("dayView");
+
+function renderTabs(){
+  tabsEl.innerHTML = "";
+  DAYS.forEach((d,i)=>{
+    const b = document.createElement("button");
+    b.className = "tab"; b.role="tab";
+    b.setAttribute("aria-selected", i===current ? "true":"false");
+    b.innerHTML = `<span class="dot" style="${i===current?`background:var(--${d.accent})`:""}"></span>${d.label}`;
+    b.onclick = ()=>{ current=i; renderTabs(); renderDay(); };
+    tabsEl.appendChild(b);
+  });
+}
+
+function renderDay(){
+  const d = DAYS[current];
+  let html = `<h2 class="day-head">${d.title}</h2><p class="day-sub">${d.sub}</p>`;
+
+  if(d.checklist){
+    const done = DB.checks[d.id] || [];
+    html += `<div class="check-list">`;
+    d.checklist.forEach((c,i)=>{
+      const isDone = !!done[i];
+      html += `<label class="check ${isDone?"done":""}">
+        <input type="checkbox" data-check="${i}" ${isDone?"checked":""}>
+        <span>${c}</span></label>`;
+    });
+    html += `</div>`;
+    html += `<div class="savebar"><span class="msg">Checkboxes save on their own.</span>
+      <button class="btn ghost" id="resetChecks">Reset day</button></div>`;
+    viewEl.innerHTML = html;
+
+    viewEl.querySelectorAll("[data-check]").forEach(cb=>{
+      cb.addEventListener("change", async ()=>{
+        const i = +cb.dataset.check;
+        if(!DB.checks[d.id]) DB.checks[d.id]=[];
+        DB.checks[d.id][i] = cb.checked;
+        cb.closest(".check").classList.toggle("done", cb.checked);
+        await saveDB();
+      });
+    });
+    document.getElementById("resetChecks").onclick = async ()=>{
+      DB.checks[d.id]=[]; await saveDB(); renderDay();
+    };
+    return;
+  }
+
+  html += `<div class="grid">`;
+  d.ex.forEach(ex=>{
+    const L = unitLabels(ex.unit);
+    const last = lastFor(ex.id);
+    const lastTxt = last
+      ? `Last: <strong style="color:var(--text)">${last.w||"–"}${ex.unit==="weight"?" lb":ex.unit==="time"?"s":""}${last.r?` × ${last.r}`:""}</strong> · ${fmtDate(last.date)}`
+      : `No entries yet`;
+    html += `<div class="card ${ex.tag}">
+      <div class="card-top">
+        <div class="icon m-${MOTION[ex.icon]||"bob"}" aria-hidden="true">${ICONS[ex.icon]||""}</div>
+        <div>
+          <h3 class="ex-name">${ex.name}</h3>
+          <div class="ex-target">Target: ${ex.target}</div>
+          <div class="tags">${
+            ex.tag==="both" ? `<span class="tag golf">Golf</span><span class="tag hockey">Hockey</span>`
+            : ex.tag==="golf" ? `<span class="tag golf">Golf</span>`
+            : `<span class="tag hockey">Hockey</span>`
+          }</div>
+        </div>
+      </div>
+      <button class="clip-btn" data-clip="${ex.id}" aria-expanded="false">
+        <span class="tri" aria-hidden="true"></span><span class="lbl">Watch clip</span></button>
+      <div class="clip" data-clipbox="${ex.id}" hidden></div>
+      <div class="log">
+        <div class="field"><label>${L.a.l}</label>
+          <input type="number" inputmode="numeric" min="0" data-ex="${ex.id}" data-k="${L.a.k}" placeholder="–"></div>
+        ${L.b?`<div class="field"><label>${L.b.l}</label>
+          <input type="number" inputmode="numeric" min="0" data-ex="${ex.id}" data-k="${L.b.k}" placeholder="–"></div>`:""}
+      </div>
+      <div class="lastline" data-last="${ex.id}">${lastTxt}${sparkline(ex.id,ex.unit)}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="savebar">
+    <span class="msg" id="saveMsg">Fill in what you hit, then save today's session.</span>
+    <button class="btn" id="saveBtn">Save session</button>
+  </div>`;
+  viewEl.innerHTML = html;
+
+  document.getElementById("saveBtn").onclick = saveSession;
+  viewEl.querySelectorAll("[data-clip]").forEach(btn=>{
+    btn.addEventListener("click", ()=>toggleClip(btn));
+  });
+}
+
+async function saveSession(){
+  const d = DAYS[current];
+  const date = todayKey();
+  let saved = 0, pbHit = false;
+
+  d.ex.forEach(ex=>{
+    const inA = viewEl.querySelector(`input[data-ex="${ex.id}"][data-k="${ex.unit==="reps"?"r":"w"}"]`);
+    const inR = viewEl.querySelector(`input[data-ex="${ex.id}"][data-k="r"]`);
+    const primary = inA ? inA.value.trim() : "";
+    if(primary === "") return;             // skip untouched exercises
+
+    const prevBest = bestFor(ex.id);
+    const entry = {
+      date,
+      w: ex.unit==="reps" ? "" : primary,
+      r: (inR && inR!==inA) ? inR.value.trim() : (ex.unit==="reps" ? primary : "")
+    };
+    if(!DB.logs[ex.id]) DB.logs[ex.id]=[];
+    // one entry per exercise per day — replace if re-saving today
+    DB.logs[ex.id] = DB.logs[ex.id].filter(e=>e.date!==date);
+    DB.logs[ex.id].push(entry);
+    saved++;
+    if(ex.unit==="weight" && Number(entry.w) > prevBest && prevBest>0) pbHit = true;
+  });
+
+  if(saved===0){
+    flash("Nothing filled in yet — add a weight or reps first.");
+    return;
+  }
+  await saveDB();
+  updateStats();
+  renderDay();
+  showToast(pbHit ? "New personal best! ★" : `Saved ${saved} exercise${saved>1?"s":""} ✓`);
+}
+
+function flash(msg){
+  const m = document.getElementById("saveMsg");
+  if(m){ m.textContent = msg; m.style.color = "var(--gold)"; setTimeout(()=>m.style.color="",2200); }
+}
+let toastT;
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2000);
+}
+
+/* ---------------- Stats ---------------- */
+function allSessionDates(){
+  const set = new Set();
+  Object.values(DB.logs).forEach(arr=>arr.forEach(e=>set.add(e.date)));
+  Object.keys(DB.checks).forEach(k=>{ if((DB.checks[k]||[]).some(Boolean)) { /* recovery days not counted as sessions */ }});
+  return [...set];
+}
+function updateStats(){
+  const dates = allSessionDates();
+  document.getElementById("statTotal").textContent = dates.length;
+  const now = new Date(); const wk = new Date(now); wk.setDate(now.getDate()-6);
+  const wkKey = wk.toISOString().slice(0,10);
+  document.getElementById("statWeek").textContent = dates.filter(d=>d>=wkKey).length;
+}
+
+/* ---------------- Boot ---------------- */
+(async function init(){
+  await loadDB();
+  renderTabs();
+  renderDay();
+  updateStats();
+})();
+</script>
